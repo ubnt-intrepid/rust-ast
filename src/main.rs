@@ -20,63 +20,63 @@ mod ast {
         Var(String),
         Fun(String, Box<Expr>),
     }
+    use self::Expr::*;
 
     /// / constructors for Enums.
 
     pub fn _int(i: i64) -> Expr {
-        Expr::Int(i)
+        Int(i)
     }
 
     pub fn _var(v: &str) -> Expr {
-        Expr::Var(v.to_string())
+        Var(v.to_string())
     }
 
     pub fn _sub(e1: Expr, e2: Expr) -> Expr {
-        Expr::Sub(Box::new(e1), Box::new(e2))
+        Sub(Box::new(e1), Box::new(e2))
     }
 
     pub fn _if(e1: Expr, e2: Expr, e3: Expr, e4: Expr) -> Expr {
-        Expr::If(Box::new(e1), Box::new(e2), Box::new(e3), Box::new(e4))
+        If(Box::new(e1), Box::new(e2), Box::new(e3), Box::new(e4))
     }
 
     pub fn _app(e1: Expr, e2: Expr) -> Expr {
-        Expr::App(Box::new(e1), Box::new(e2))
+        App(Box::new(e1), Box::new(e2))
     }
 
     pub fn _fun(v: &str, e: Expr) -> Expr {
-        Expr::Fun(v.to_string(), Box::new(e))
+        Fun(v.to_string(), Box::new(e))
     }
-
 
     /// Evaluate an expression.
     pub fn eval(expr: Expr) -> Option<Expr> {
         match expr {
-            Expr::Int(i) => Some(Expr::Int(i)),
+            Int(i) => Some(Int(i)),
 
-            Expr::Var(_) => None,
+            Var(_) => None,
 
-            Expr::Sub(e1, e2) => {
+            Sub(e1, e2) => {
                 let i = match get!(eval(*e1)) {
-                    Expr::Int(x) => x,
+                    Int(x) => x,
                     _ => return None,
                 };
 
                 let j = match get!(eval(*e2)) {
-                    Expr::Int(x) => x,
+                    Int(x) => x,
                     _ => return None,
                 };
 
-                Some(Expr::Int(i - j))
+                Some(Int(i - j))
             }
 
-            Expr::If(e1, e2, e3, e4) => {
+            If(e1, e2, e3, e4) => {
                 let i = match get!(eval(*e1)) {
-                    Expr::Int(x) => x,
+                    Int(x) => x,
                     _ => return None,
                 };
 
                 let j = match get!(eval(*e2)) {
-                    Expr::Int(x) => x,
+                    Int(x) => x,
                     _ => return None,
                 };
 
@@ -89,11 +89,11 @@ mod ast {
                 eval(e)
             }
 
-            Expr::Fun(x, e) => Some(Expr::Fun(x, e)),
+            Fun(x, e) => Some(Fun(x, e)),
 
-            Expr::App(e1, e2) => {
+            App(e1, e2) => {
                 let (x, e) = match get!(eval(*e1)) {
-                    Expr::Fun(x, e) => (x, e),
+                    Fun(x, e) => (x, e),
                     _ => return None,
                 };
                 let v = get!(eval(*e2));
@@ -106,43 +106,42 @@ mod ast {
     /// substitutes the variable with name `x` to expression `v` (in `expr`).
     fn subst(expr: Expr, x: String, v: Expr) -> Option<Expr> {
         match expr {
-            Expr::Int(i) => Some(Expr::Int(i)),
+            Int(i) => Some(Int(i)),
 
-            Expr::Var(y) => {
+            Var(y) => {
                 if x == y {
                     Some(v)
                 } else {
-                    Some(Expr::Var(y))
+                    Some(Var(y))
                 }
             }
 
-            Expr::Sub(e1, e2) => {
+            Sub(e1, e2) => {
                 let i = get!(subst(*e1, x.clone(), v.clone()));
                 let j = get!(subst(*e2, x.clone(), v.clone()));
-                Some(Expr::Sub(Box::new(i), Box::new(j)))
+                Some(Sub(Box::new(i), Box::new(j)))
             }
 
-            Expr::If(e1, e2, e3, e4) => {
+            If(e1, e2, e3, e4) => {
                 let i = get!(subst(*e1, x.clone(), v.clone()));
                 let j = get!(subst(*e2, x.clone(), v.clone()));
                 let k = get!(subst(*e3, x.clone(), v.clone()));
                 let l = get!(subst(*e4, x.clone(), v.clone()));
-                Some(Expr::If(Box::new(i), Box::new(j), Box::new(k), Box::new(l)))
+                Some(If(Box::new(i), Box::new(j), Box::new(k), Box::new(l)))
             }
 
-            Expr::Fun(y, e) => {
-                let ee = if x == y {
-                    e
+            Fun(y, e) => {
+                if x == y {
+                    Some(Fun(y, e))
                 } else {
-                    Box::new(get!(subst(*e, x, v)))
-                };
-                Some(Expr::Fun(y, ee))
+                    Some(Fun(y, Box::new(get!(subst(*e, x, v)))))
+                }
             }
 
-            Expr::App(e1, e2) => {
+            App(e1, e2) => {
                 let i = get!(subst(*e1, x.clone(), v.clone()));
                 let j = get!(subst(*e2, x.clone(), v.clone()));
-                Some(Expr::App(Box::new(i), Box::new(j)))
+                Some(App(Box::new(i), Box::new(j)))
             }
         }
     }
@@ -164,7 +163,7 @@ mod ast {
     pub fn print_eval(name: &str, expr: Expr) {
         print!("eval {}: ", name);
         match eval(expr).unwrap() {
-            Expr::Int(i) => println!("{}", i),
+            Int(i) => println!("{}", i),
             _ => panic!("evaluation failed.!"),
         }
     }
