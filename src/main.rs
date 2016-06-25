@@ -1,5 +1,14 @@
 // http://qiita.com/esumii/items/0eeb30f35c2a9da4ab8a
 
+macro_rules! get (
+    ($e:expr) => (
+        match $e {
+            Some(x) => x,
+            None => return None,
+        }
+    )
+);
+
 mod ast {
 
     #[derive(Clone)]
@@ -47,13 +56,13 @@ mod ast {
             Expr::Var(_) => None,
 
             Expr::Sub(e1, e2) => {
-                let i = match eval(*e1) {
-                    Some(Expr::Int(x)) => x,
+                let i = match get!(eval(*e1)) {
+                    Expr::Int(x) => x,
                     _ => return None,
                 };
 
-                let j = match eval(*e2) {
-                    Some(Expr::Int(x)) => x,
+                let j = match get!(eval(*e2)) {
+                    Expr::Int(x) => x,
                     _ => return None,
                 };
 
@@ -61,38 +70,34 @@ mod ast {
             }
 
             Expr::If(e1, e2, e3, e4) => {
-                let i = match eval(*e1) {
-                    Some(Expr::Int(x)) => x,
+                let i = match get!(eval(*e1)) {
+                    Expr::Int(x) => x,
                     _ => return None,
                 };
 
-                let j = match eval(*e2) {
-                    Some(Expr::Int(x)) => x,
+                let j = match get!(eval(*e2)) {
+                    Expr::Int(x) => x,
                     _ => return None,
                 };
 
-                eval(if i <= j {
+                let e = if i <= j {
                     *e3
                 } else {
                     *e4
-                })
+                };
+
+                eval(e)
             }
 
             Expr::Fun(x, e) => Some(Expr::Fun(x, e)),
 
             Expr::App(e1, e2) => {
-                let (x, e) = match eval(*e1) {
-                    Some(Expr::Fun(x, e)) => (x, e),
+                let (x, e) = match get!(eval(*e1)) {
+                    Expr::Fun(x, e) => (x, e),
                     _ => return None,
                 };
-                let v = match eval(*e2) {
-                    Some(e) => e,
-                    _ => return None,
-                };
-                let ee = match subst(*e, x, v) {
-                    Some(e) => e,
-                    _ => return None,
-                };
+                let v = get!(eval(*e2));
+                let ee = get!(subst(*e, x, v));
                 eval(ee)
             }
         }
@@ -112,59 +117,31 @@ mod ast {
             }
 
             Expr::Sub(e1, e2) => {
-                let i = match subst(*e1, x.clone(), v.clone()) {
-                    None => return None,
-                    Some(a) => a,
-                };
-                let j = match subst(*e2, x, v) {
-                    None => return None,
-                    Some(a) => a,
-                };
+                let i = get!(subst(*e1, x.clone(), v.clone()));
+                let j = get!(subst(*e2, x.clone(), v.clone()));
                 Some(Expr::Sub(Box::new(i), Box::new(j)))
             }
 
             Expr::If(e1, e2, e3, e4) => {
-                let i = match subst(*e1, x.clone(), v.clone()) {
-                    None => return None,
-                    Some(a) => a,
-                };
-                let j = match subst(*e2, x.clone(), v.clone()) {
-                    None => return None,
-                    Some(a) => a,
-                };
-                let k = match subst(*e3, x.clone(), v.clone()) {
-                    None => return None,
-                    Some(a) => a,
-                };
-                let l = match subst(*e4, x.clone(), v.clone()) {
-                    None => return None,
-                    Some(a) => a,
-                };
-
+                let i = get!(subst(*e1, x.clone(), v.clone()));
+                let j = get!(subst(*e2, x.clone(), v.clone()));
+                let k = get!(subst(*e3, x.clone(), v.clone()));
+                let l = get!(subst(*e4, x.clone(), v.clone()));
                 Some(Expr::If(Box::new(i), Box::new(j), Box::new(k), Box::new(l)))
             }
 
             Expr::Fun(y, e) => {
-                if x == y {
-                    Some(Expr::Fun(y, e))
+                let ee = if x == y {
+                    e
                 } else {
-                    let w = match subst(*e, x, v) {
-                        None => return None,
-                        Some(a) => a,
-                    };
-                    Some(Expr::Fun(y, Box::new(w)))
-                }
+                    Box::new(get!(subst(*e, x, v)))
+                };
+                Some(Expr::Fun(y, ee))
             }
 
             Expr::App(e1, e2) => {
-                let i = match subst(*e1, x.clone(), v.clone()) {
-                    None => return None,
-                    Some(a) => a,
-                };
-                let j = match subst(*e2, x.clone(), v.clone()) {
-                    None => return None,
-                    Some(a) => a,
-                };
+                let i = get!(subst(*e1, x.clone(), v.clone()));
+                let j = get!(subst(*e2, x.clone(), v.clone()));
                 Some(Expr::App(Box::new(i), Box::new(j)))
             }
         }
@@ -186,8 +163,8 @@ mod ast {
 
     pub fn print_eval(name: &str, expr: Expr) {
         print!("eval {}: ", name);
-        match eval(expr) {
-            Some(Expr::Int(i)) => println!("{}", i),
+        match eval(expr).unwrap() {
+            Expr::Int(i) => println!("{}", i),
             _ => panic!("evaluation failed.!"),
         }
     }
