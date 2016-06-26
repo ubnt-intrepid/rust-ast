@@ -50,7 +50,7 @@ pub fn _let(x: &str, e1: Expr, e2: Expr) -> Expr {
 
 pub fn print_eval(name: &str, expr: Expr) {
     print!("eval {}: ", name);
-    match eval(expr, Env::new()).unwrap() {
+    match eval(expr, &Env::new()).unwrap() {
         VInt(i) => println!("{}", i),
         _ => panic!("evaluation failed.!"),
     }

@@ -23,18 +23,18 @@ pub enum Value {
 pub use self::Expr::*;
 pub use self::Value::*;
 
-pub fn eval(expr: Expr, env: Env) -> Result<Value, ()> {
+pub fn eval(expr: Expr, env: &Env) -> Result<Value, ()> {
     match expr {
         Int(i) => Ok(VInt(i)),
 
         Var(x) => env.get(&x).cloned().ok_or_else(|| ()),
 
         Sub(e1, e2) => {
-            let i = match try!(eval(*e1, env.clone())) {
+            let i = match try!(eval(*e1, env)) {
                 VInt(x) => x,
                 _ => return Err(()),
             };
-            let j = match try!(eval(*e2, env.clone())) {
+            let j = match try!(eval(*e2, env)) {
                 VInt(x) => x,
                 _ => return Err(()),
             };
@@ -42,31 +42,31 @@ pub fn eval(expr: Expr, env: Env) -> Result<Value, ()> {
         }
 
         If(e1, e2, e3, e4) => {
-            let i = match try!(eval(*e1, env.clone())) {
+            let i = match try!(eval(*e1, env)) {
                 VInt(x) => x,
                 _ => return Err(()),
             };
-            let j = match try!(eval(*e2, env.clone())) {
+            let j = match try!(eval(*e2, env)) {
                 VInt(x) => x,
                 _ => return Err(()),
             };
             if i <= j {
-                eval(*e3, env.clone())
+                eval(*e3, env)
             } else {
-                eval(*e4, env.clone())
+                eval(*e4, env)
             }
         }
 
-        Fun(x, e) => Ok(VClosure(x, *e, env)),
+        Fun(x, e) => Ok(VClosure(x, *e, env.clone())),
 
         App(e1, e2) => {
-            let (x, e, mut env_) = match try!(eval(*e1, env.clone())) {
+            let (x, e, mut env_) = match try!(eval(*e1, env)) {
                 VClosure(x, e, env) => (x, e, env),
                 _ => return Err(()),
             };
-            let v = try!(eval(*e2, env.clone()));
+            let v = try!(eval(*e2, env));
             env_.insert(x, v);
-            eval(e, env_)
+            eval(e, &env_)
         }
     }
 }
