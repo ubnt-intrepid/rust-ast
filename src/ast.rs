@@ -1,14 +1,5 @@
 // http://qiita.com/esumii/items/0eeb30f35c2a9da4ab8a
 
-macro_rules! get (
-    ($e:expr) => (
-        match $e {
-            Some(x) => x,
-            None => return None,
-        }
-    )
-);
-
 #[derive(Clone)]
 pub enum Expr {
     Int(i64),
@@ -18,9 +9,8 @@ pub enum Expr {
     Var(String),
     Fun(String, Box<Expr>),
 }
-use self::Expr::*;
 
-/// / constructors for Enums.
+pub use self::Expr::*;
 
 pub fn _int(i: i64) -> Expr {
     Int(i)
@@ -46,36 +36,35 @@ pub fn _fun(v: &str, e: Expr) -> Expr {
     Fun(v.to_string(), Box::new(e))
 }
 
-/// Evaluate an expression.
-pub fn eval(expr: Expr) -> Option<Expr> {
+pub fn eval(expr: Expr) -> Result<Expr, ()> {
     match expr {
-        Int(i) => Some(Int(i)),
+        Int(i) => Ok(Int(i)),
 
-        Var(_) => None,
+        Var(_) => Err(()),
 
         Sub(e1, e2) => {
-            let i = match get!(eval(*e1)) {
+            let i = match try!(eval(*e1)) {
                 Int(x) => x,
-                _ => return None,
+                _ => return Err(()),
             };
 
-            let j = match get!(eval(*e2)) {
+            let j = match try!(eval(*e2)) {
                 Int(x) => x,
-                _ => return None,
+                _ => return Err(()),
             };
 
-            Some(Int(i - j))
+            Ok(Int(i - j))
         }
 
         If(e1, e2, e3, e4) => {
-            let i = match get!(eval(*e1)) {
+            let i = match try!(eval(*e1)) {
                 Int(x) => x,
-                _ => return None,
+                _ => return Err(()),
             };
 
-            let j = match get!(eval(*e2)) {
+            let j = match try!(eval(*e2)) {
                 Int(x) => x,
-                _ => return None,
+                _ => return Err(()),
             };
 
             let e = if i <= j {
@@ -87,64 +76,61 @@ pub fn eval(expr: Expr) -> Option<Expr> {
             eval(e)
         }
 
-        Fun(x, e) => Some(Fun(x, e)),
+        Fun(x, e) => Ok(Fun(x, e)),
 
         App(e1, e2) => {
-            let (x, e) = match get!(eval(*e1)) {
+            let (x, e) = match try!(eval(*e1)) {
                 Fun(x, e) => (x, e),
-                _ => return None,
+                _ => return Err(()),
             };
-            let v = get!(eval(*e2));
-            let ee = get!(subst(*e, x, v));
+            let v = try!(eval(*e2));
+            let ee = try!(subst(*e, x, v));
             eval(ee)
         }
     }
 }
 
-/// substitutes the variable with name `x` to expression `v` (in `expr`).
-fn subst(expr: Expr, x: String, v: Expr) -> Option<Expr> {
+fn subst(expr: Expr, x: String, v: Expr) -> Result<Expr, ()> {
     match expr {
-        Int(i) => Some(Int(i)),
+        Int(i) => Ok(Int(i)),
 
         Var(y) => {
             if x == y {
-                Some(v)
+                Ok(v)
             } else {
-                Some(Var(y))
+                Ok(Var(y))
             }
         }
 
         Sub(e1, e2) => {
-            let i = get!(subst(*e1, x.clone(), v.clone()));
-            let j = get!(subst(*e2, x.clone(), v.clone()));
-            Some(Sub(Box::new(i), Box::new(j)))
+            let i = try!(subst(*e1, x.clone(), v.clone()));
+            let j = try!(subst(*e2, x.clone(), v.clone()));
+            Ok(Sub(Box::new(i), Box::new(j)))
         }
 
         If(e1, e2, e3, e4) => {
-            let i = get!(subst(*e1, x.clone(), v.clone()));
-            let j = get!(subst(*e2, x.clone(), v.clone()));
-            let k = get!(subst(*e3, x.clone(), v.clone()));
-            let l = get!(subst(*e4, x.clone(), v.clone()));
-            Some(If(Box::new(i), Box::new(j), Box::new(k), Box::new(l)))
+            let i = try!(subst(*e1, x.clone(), v.clone()));
+            let j = try!(subst(*e2, x.clone(), v.clone()));
+            let k = try!(subst(*e3, x.clone(), v.clone()));
+            let l = try!(subst(*e4, x.clone(), v.clone()));
+            Ok(If(Box::new(i), Box::new(j), Box::new(k), Box::new(l)))
         }
 
         Fun(y, e) => {
             if x == y {
-                Some(Fun(y, e))
+                Ok(Fun(y, e))
             } else {
-                Some(Fun(y, Box::new(get!(subst(*e, x, v)))))
+                Ok(Fun(y, Box::new(try!(subst(*e, x, v)))))
             }
         }
 
         App(e1, e2) => {
-            let i = get!(subst(*e1, x.clone(), v.clone()));
-            let j = get!(subst(*e2, x.clone(), v.clone()));
-            Some(App(Box::new(i), Box::new(j)))
+            let i = try!(subst(*e1, x.clone(), v.clone()));
+            let j = try!(subst(*e2, x.clone(), v.clone()));
+            Ok(App(Box::new(i), Box::new(j)))
         }
     }
 }
-
-/// / Utility functions.
 
 pub fn _negate(e: Expr) -> Expr {
     _sub(_int(0), e)
