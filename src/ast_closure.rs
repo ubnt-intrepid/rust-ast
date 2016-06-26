@@ -34,12 +34,10 @@ pub fn eval(expr: Expr, env: Env) -> Result<Value, ()> {
                 VInt(x) => x,
                 _ => return Err(()),
             };
-
             let j = match try!(eval(*e2, env.clone())) {
                 VInt(x) => x,
                 _ => return Err(()),
             };
-
             Ok(VInt(i - j))
         }
 
@@ -48,35 +46,27 @@ pub fn eval(expr: Expr, env: Env) -> Result<Value, ()> {
                 VInt(x) => x,
                 _ => return Err(()),
             };
-
             let j = match try!(eval(*e2, env.clone())) {
                 VInt(x) => x,
                 _ => return Err(()),
             };
-
-            let e = if i <= j {
-                *e3
+            if i <= j {
+                eval(*e3, env.clone())
             } else {
-                *e4
-            };
-
-            eval(e, env.clone())
+                eval(*e4, env.clone())
+            }
         }
 
         Fun(x, e) => Ok(VClosure(x, *e, env)),
 
         App(e1, e2) => {
-            let (x, e, env_) = match try!(eval(*e1, env.clone())) {
+            let (x, e, mut env_) = match try!(eval(*e1, env.clone())) {
                 VClosure(x, e, env) => (x, e, env),
                 _ => return Err(()),
             };
             let v = try!(eval(*e2, env.clone()));
-            let env__ = {
-                let mut env_: Env = env_.clone();
-                env_.insert(x, v);
-                env_
-            };
-            eval(e, env__)
+            env_.insert(x, v);
+            eval(e, env_)
         }
     }
 }
